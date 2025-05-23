@@ -47,6 +47,7 @@ def check_releases(seen_releases):
             if repo not in seen_releases or seen_releases[repo] < release_date:
                 yield (repo, release_version, release_date, release_url)
                 save_seen_release(repo, release_date)
+                seen_releases[repo] = release_date
 
 async def main():
     seen_releases = load_seen_releases()
