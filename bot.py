@@ -37,17 +37,20 @@ def check_releases(seen_releases):
     for repo in REPOS:
         response = requests.get(f'https://api.github.com/repos/{repo}/releases')
         releases = response.json()
-        
-        if releases:
-            latest_release = releases[0]
-            release_date = latest_release["published_at"]
-            release_version = latest_release["name"]
-            release_url = latest_release["html_url"]
+
+        for release in releases:
+            if release.get("draft", False) or release.get("prerelease", False):
+                continue
+
+            release_date = release["published_at"]
+            release_version = release["name"]
+            release_url = release["html_url"]
 
             if repo not in seen_releases or seen_releases[repo] < release_date:
                 yield (repo, release_version, release_date, release_url)
                 save_seen_release(repo, release_date)
                 seen_releases[repo] = release_date
+            break
 
 async def main():
     seen_releases = load_seen_releases()
