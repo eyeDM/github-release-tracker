@@ -1,5 +1,5 @@
-.env
-bot.py
-docker-compose.yml
 Dockerfile
+docker-compose.yml
+bot.py
+config.json
 seen_releases.txt

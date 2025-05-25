@@ -5,11 +5,8 @@ services:
       dockerfile: Dockerfile
     image: github-tracker
     container_name: github-tracker
-    environment:
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-      - CHAT_ID=${CHAT_ID}
-      - CHECK_TIMEOUT=${CHECK_TIMEOUT}
     volumes:
       - ./bot.py:/app/bot.py:ro
+      - ./config.json:/app/config.json:ro
       - ./seen_releases.txt:/app/seen_releases.txt
     restart: unless-stopped

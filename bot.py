@@ -1,27 +1,29 @@
 import os
+import sys
+import json
 import requests
 import asyncio
 from telegram import Bot
 from time import sleep
 from datetime import datetime
 
-TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
-CHAT_ID = os.environ['CHAT_ID']
-CHECK_TIMEOUT = int(os.environ['CHECK_TIMEOUT'])
+if len(sys.argv) < 2:
+    print("Usage: python bot.py <config.json>")
+    sys.exit(1)
 
-REPOS = [
-    'notepad-plus-plus/notepad-plus-plus',
-    'PowerShell/PowerShell',
-    'git-for-windows/git',
-    'go-gitea/gitea',
-    'openai/whisper',
-    '9seconds/mtg',
-    'XTLS/Xray-core',
-    '2dust/v2rayN'
-]
+config_path = sys.argv[1]
+
+with open(config_path, 'r') as f:
+    config = json.load(f)
+
+BOT_TOKEN = config['BOT_TOKEN']
+CHAT_ID = config['CHAT_ID']
+CHECK_TIMEOUT = int(config['CHECK_TIMEOUT'])
+REPOS = config['REPOS']
+
 SEEN_RELEASES_FILE = '/app/seen_releases.txt'
 
-bot = Bot(token=TELEGRAM_TOKEN)
+bot = Bot(token=BOT_TOKEN)
 
 def load_seen_releases():
     if os.path.exists(SEEN_RELEASES_FILE):

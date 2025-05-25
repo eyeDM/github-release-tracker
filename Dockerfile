@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 USER app
 
-CMD ["python", "bot.py"]
+CMD ["python", "bot.py", "config.json"]
