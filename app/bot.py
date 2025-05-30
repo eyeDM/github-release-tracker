@@ -6,6 +6,7 @@ import asyncio
 from telegram import Bot
 from time import sleep
 from datetime import datetime
+from release_db import init_db, get_seen_releases, save_seen_release
 
 if len(sys.argv) < 2:
     print("Usage: python bot.py <config.json>")
@@ -21,23 +22,11 @@ CHAT_ID = config['CHAT_ID']
 CHECK_TIMEOUT = int(config['CHECK_TIMEOUT'])
 REPOS = config['REPOS']
 
-SEEN_RELEASES_FILE = '/app/seen_releases.txt'
-
 bot = Bot(token=BOT_TOKEN)
-
-def load_seen_releases():
-    if os.path.exists(SEEN_RELEASES_FILE):
-        with open(SEEN_RELEASES_FILE, 'r') as f:
-            return {line.split(',')[0]: line.split(',')[1].strip() for line in f.readlines()}
-    return {}
-
-def save_seen_release(repo, release_date):
-    with open(SEEN_RELEASES_FILE, 'a') as f:
-        f.write(f'{repo},{release_date}\n')
 
 def check_releases(seen_releases):
     for repo in REPOS:
-        response = requests.get(f'https://api.github.com/repos/{repo}/releases')
+        response = requests.get(f'https://api.github.com/repos/{repo}/releases?per_page=10')
         releases = response.json()
 
         for release in releases:
@@ -45,23 +34,25 @@ def check_releases(seen_releases):
                 continue
 
             release_date = release["published_at"]
-            release_version = release["name"]
+            release_name = release.get("tag_name", release.get("name", ""))
             release_url = release["html_url"]
 
             if repo not in seen_releases or seen_releases[repo] < release_date:
-                yield (repo, release_version, release_date, release_url)
+                yield (repo, release_name, release_date, release_url)
                 save_seen_release(repo, release_date)
                 seen_releases[repo] = release_date
             break
 
 async def main():
-    seen_releases = load_seen_releases()
+    init_db()
+    seen_releases = get_seen_releases()
+
     while True:
         for message in check_releases(seen_releases):
-            repo, version, date, url = message
+            repo, name, date, url = message
             notification_text = (
                 f'<b>{repo}</b>\n'
-                f'Релиз <i>{version}</i>\n'
+                f'Релиз <i>{name}</i>\n'
                 f'Дата публикации: {datetime.fromisoformat(date[:-1]).strftime("%Y-%m-%d %H:%M:%S")}\n'
                 f'{url}'
             )

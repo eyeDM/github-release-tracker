@@ -6,7 +6,6 @@ services:
     image: github-tracker
     container_name: github-tracker
     volumes:
-      - ./bot.py:/app/bot.py:ro
-      - ./config.json:/app/config.json:ro
-      - ./seen_releases.txt:/app/seen_releases.txt
+      - ./app:/app:ro
+      - ./storage:/var/lib/app
     restart: unless-stopped
