@@ -1,9 +1,8 @@
 services:
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: github-tracker
+    build:
+      context: ./build
     container_name: github-tracker
     volumes:
       - ./app:/app:ro
