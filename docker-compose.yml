@@ -3,8 +3,12 @@ services:
     image: github-tracker
     build:
       context: ./build
+      args:
+        UID: $UID
     container_name: github-tracker
     volumes:
-      - ./app:/app:ro
+      - ./app/bot.py:/app/bot.py:ro
+      - ./app/release_db.py:/app/release_db.py:ro
+      - ./app/config.json:/app/config.json:ro
       - ./storage:/var/lib/app
     restart: unless-stopped

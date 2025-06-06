@@ -1,7 +1,9 @@
 FROM python:3.13-slim
 
-RUN addgroup --gid 1001 --system app && \
-    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --group app
+ARG UID=1001
+
+RUN addgroup --gid $UID --system app && \
+    adduser --no-create-home --shell /bin/false --disabled-password --uid $UID --system --group app
 
 RUN pip install --no-cache-dir requests python-telegram-bot
 
