@@ -1,0 +1,14 @@
+[Unit]
+Description=Run GitHub release tracker once
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/github-release-tracker
+ExecStart=/usr/bin/docker compose run --rm bot
+TimeoutStartSec=600
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

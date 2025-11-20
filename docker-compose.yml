@@ -1,9 +1,10 @@
 services:
   bot:
-    image: github-tracker
+    image: github-tracker:$IMAGE_VERSION
     build:
       context: ./build
       args:
+        PYTHON_VERSION: $PYTHON_VERSION
         UID: $UID
     container_name: github-tracker
     volumes:
@@ -11,4 +12,4 @@ services:
       - ./app/release_db.py:/app/release_db.py:ro
       - ./app/config.json:/app/config.json:ro
       - ./storage:/var/lib/app
-    restart: unless-stopped
+    restart: "no"
