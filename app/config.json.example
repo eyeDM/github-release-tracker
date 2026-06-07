@@ -3,6 +3,9 @@
   "CHAT_ID": "your_chat_id",
   "REPOS": [
     "owner1/repo1",
-    "owner2/repo2"
+    {
+      "repo": "owner2/repo2",
+      "asset_regex": ".*\\.exe$"
+    }
   ]
 }

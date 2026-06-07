@@ -4,7 +4,9 @@ import sys
 import json
 import asyncio
 from datetime import datetime
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
+import re
+import html
 
 import aiohttp
 from telegram import Bot
@@ -31,6 +33,29 @@ BOT_TOKEN = config["BOT_TOKEN"]
 CHAT_ID = config["CHAT_ID"]
 REPOS = config["REPOS"]
 
+# Normalize repo config entries into dicts: {"repo": str, "asset_regex": Optional[Pattern]}
+REPO_CONFIGS: List[Dict[str, Any]] = []
+for entry in REPOS:
+    if isinstance(entry, str):
+        REPO_CONFIGS.append({"repo": entry, "asset_regex": None, "asset_regex_raw": None})
+    elif isinstance(entry, dict):
+        repo_name = entry.get("repo")
+        raw = entry.get("asset_regex")
+        if not repo_name:
+            print(f"Skipping invalid REPO entry (missing 'repo'): {entry}")
+            continue
+        compiled = None
+        if raw:
+            try:
+                compiled = re.compile(raw)
+            except re.error as rexc:
+                print(f"Invalid asset_regex for {repo_name}: {rexc}; ignoring regex")
+                compiled = None
+        REPO_CONFIGS.append({"repo": repo_name, "asset_regex": compiled, "asset_regex_raw": raw})
+    else:
+        print(f"Ignoring REPOS entry of unsupported type: {entry}")
+
+
 
 # --- helpers ---
 def parse_published_at(s: str) -> str:
@@ -55,8 +80,8 @@ async def fetch_releases_for_repo(session: aiohttp.ClientSession, repo: str) -> 
         return await resp.json()
 
 
-def newest_non_prerelease(releases: List[dict]) -> Optional[Tuple[str, str, str]]:
-    """Find newest non-draft, non-prerelease release."""
+def newest_non_prerelease(releases: List[dict]) -> Optional[Tuple[str, str, str, dict]]:
+    """Find newest non-draft, non-prerelease release and return release dict."""
     for r in releases:
         if r.get("draft") or r.get("prerelease"):
             continue
@@ -65,8 +90,26 @@ def newest_non_prerelease(releases: List[dict]) -> Optional[Tuple[str, str, str]
             continue
         name = r.get("tag_name") or r.get("name") or ""
         url = r.get("html_url", "")
-        return name, published_at, url
+        return name, published_at, url, r
     return None
+
+
+def select_asset(assets: List[dict], regex: Optional[re.Pattern]) -> Tuple[Optional[str], Optional[str]]:
+    """Select an asset matching compiled `regex` (first match). Returns (name, browser_download_url) or (None, None)."""
+    if not regex or not assets:
+        return None, None
+    for a in assets:
+        name = a.get("name")
+        url = a.get("browser_download_url")
+        if not name or not url:
+            continue
+        try:
+            if regex.search(name):
+                return name, url
+        except re.error:
+            # Shouldn't happen because regexes are compiled at startup, but guard anyway
+            continue
+    return None, None
 
 
 async def process_repos_once(bot: Bot):
@@ -85,7 +128,9 @@ async def process_repos_once(bot: Bot):
     timeout_cfg = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout_cfg) as session:
 
-        for repo in REPOS:
+        for entry in REPO_CONFIGS:
+            repo = entry["repo"]
+            asset_regex = entry.get("asset_regex")
             attempt = 0
             last_exc = None
 
@@ -98,7 +143,8 @@ async def process_repos_once(bot: Bot):
                         # no releases
                         break
 
-                    name, published_at, url = nr
+                    name, published_at, url, release_obj = nr
+                    asset_name, asset_url = select_asset(release_obj.get("assets", []), asset_regex)
                     published_at_norm = parse_published_at(published_at)
 
                     if seen.get(repo) is None or seen[repo] < published_at_norm:
@@ -113,10 +159,14 @@ async def process_repos_once(bot: Bot):
 
                         text = (
                             f"<b>{repo}</b>\n"
-                            f"Релиз <i>{name}</i>\n"
-                            f"Дата публикации: {human}\n"
+                            f"Release <i>{name}</i>\n"
+                            f"Published at {human}\n"
                             f"{url}"
                         )
+                        if asset_url:
+                            link = html.escape(asset_url, quote=True)
+                            display = html.escape(asset_name or asset_url)
+                            text = text + f"\nDownload: <a href=\"{link}\">{display}</a>"
                         await bot.send_message(chat_id=CHAT_ID, text=text, parse_mode="HTML")
 
                     break  # success
@@ -161,7 +211,7 @@ async def process_repos_once(bot: Bot):
 async def send_aggregate_problem_report(bot: Bot, problems):
     if not problems:
         return
-    lines = ["Не удалось получить данные по следующим репозиториям:"]
+    lines = ["Failed to retrieve data for the following repositories:"]
     for repo, reason in problems:
         lines.append(f"- {repo}: {reason}")
     text = "\n".join(lines)
