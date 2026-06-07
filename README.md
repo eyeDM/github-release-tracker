@@ -73,6 +73,43 @@ docker compose up --build --abort-on-container-exit
 ```
 В случае отсутствия ошибок вывод команды `docker compose logs` будет пустым.
 
+### 4. Установка systemd сервиса
+
+Скопируйте юниты в системную папку и установите права:
+```console
+sudo cp systemd/github-tracker.service /etc/systemd/system/
+sudo cp systemd/github-tracker.timer /etc/systemd/system/
+sudo chown root:root /etc/systemd/system/github-tracker.service /etc/systemd/system/github-tracker.timer
+sudo chmod 644 /etc/systemd/system/github-tracker.service /etc/systemd/system/github-tracker.timer
+```
+
+Обновите конфигурацию **systemd**:
+```console
+sudo systemctl daemon-reload
+```
+
+Включите и запустите таймер:
+```console
+sudo systemctl enable --now github-tracker.timer
+```
+
+Проверьте, что получилось:
+```console
+sudo systemctl status github-tracker.timer
+sudo systemctl list-timers --all | grep github-tracker
+```
+
+Логи сервиса:
+```console
+sudo journalctl -u github-tracker.service -u github-tracker.timer -f
+```
+
+Ручной запуск и отладка:
+```console
+sudo systemctl start github-tracker.service
+sudo systemctl status github-tracker.service
+```
+
 ## Структура проекта
 
 * `app/bot.py` — основной код бота.
